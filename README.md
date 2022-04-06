@@ -8,3 +8,9 @@ This repository contains template files describing recommended minimum informati
 
 ## Templates
 The primary XLSX-formatted specification can be found [here](https://github.com/knights-lab/ermin-standards/blob/main/templates/ermin-specification.xlsx?raw=true). 
+
+## Usage
+Run with:
+```bash
+python validate_ermin_table.py -s ermin-specification.csv -i testinput1.csv -o t1-fix.csv -v -a
+```
