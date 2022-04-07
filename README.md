@@ -14,7 +14,7 @@ The primary XLSX-formatted specification can be found [here](https://github.com/
 ## Installation
 Download this repo, and add its top-level directory to the system environment variable PYTHONPATH. The executable script `validate_ermin_table.py` is in the `bin` folder.
 
-Requirements: `validators` package for normal usage; `pytest` package for running unit tests.
+Requirements: `python` version >= 3.6, `validators` package for normal usage; `pytest` package for running unit tests.
 
 ## Usage
 Print instructions with:
