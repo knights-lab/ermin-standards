@@ -12,9 +12,15 @@ The repository also includes software for validation and correction of data tabl
 The primary XLSX-formatted specification can be found [here](https://github.com/knights-lab/ermin-standards/blob/main/templates/ermin-specification.xlsx?raw=true). 
 
 ## Installation
-Download this repo, and add its top-level directory to the system environment variable PYTHONPATH. The executable script `validate_ermin_table.py` is in the `bin` folder.
+- Download this repo ([zipped version](https://github.com/knights-lab/ermin-standards/archive/refs/heads/main.zip) or, better, clone with `git`)
+- Permanently add the full path to its top-level directory to the [system environment variable](https://stackoverflow.com/questions/3402168/permanently-add-a-directory-to-pythonpath) `PYTHONPATH`. After reopening your terminal, you should now be able to run `import ermin` from a Python interpreter anywhere on your system.
+- Optionally, permanently add the full path to the `bin` directory to the [system environment variable](https://stackoverflow.com/questions/14637979/how-to-permanently-set-path-on-linux-unix) `PATH`. This will allow you to run ERMIN executables from anywhere on your system (i.e. just run `validate_ermin_table.py`). Otherwise, run with `python /path/to/repo/bin/validate_ermin_table.py`.
 
-Requirements: `python` version >= 3.6, `validators` package for normal usage; `pytest` package for running unit tests.
+## Requirements:
+- `python` version >= 3.6
+- `validators` package
+- `pytest` package for running unit tests
+- Mac or Linux (may work on Windows, but not tested).
 
 ## Usage
 Print instructions with:
