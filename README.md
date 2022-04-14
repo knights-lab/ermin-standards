@@ -30,15 +30,26 @@ Validate a Pandas dataframe:
 ```python
 import ermin.validation as ev
 import pandas as pd
+
+# load CSV into a Pandas DataFrame
+# Notes: use comment='#' to skip comment lines
+#        use dtype = str to prevent conversion of fields
+#        use keep_default_na=False to ensure that empty fields remain strings
+df = pd.read_csv('test/testdata/testinput3.csv', comment='#', dtype = str, keep_default_na=False)
+
+# Example 1: Validate DataFrame using provided spec file, returning a new repaired DataFrame
 warnings, errors, newdf = ev.check_input_dataframe(df,spec_file='templates/ermin-specification.csv')
+
+# Example 2: Validate DataFrame using provided spec file, saving repaired table to file
+warnings, errors, newdf = ev.check_input_dataframe(df,spec_file='templates/ermin-specification.csv', output_file='t1-fix.csv')
 ```
 
 Validate a CSV file and save repaired table to a new file:
 ```python
 import ermin.validation as ev
-import pandas as pd
-warnings, errors = check_input_file('test/testdata/testinput1.csv, 'templats/ermin-specification.csv', output_file='t1-fix.csv')
 
+# Validate file and write a repaired version to new file
+warnings, errors = check_input_file('test/testdata/testinput1.csv, 'templats/ermin-specification.csv', output_file='t1-fix.csv')
 ```
 
 ### To use from the command line:
