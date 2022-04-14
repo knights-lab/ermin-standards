@@ -19,10 +19,29 @@ The primary XLSX-formatted specification can be found [here](https://github.com/
 ## Requirements:
 - `python` version >= 3.6
 - `validators` package
+- `pandas` package
 - `pytest` package for running unit tests
 - Mac or Linux (may work on Windows, but not tested).
 
 ## Usage
+
+### To use as a module:
+Validate a Pandas dataframe:
+```python
+import ermin.validation as ev
+import pandas as pd
+warnings, errors, newdf = ev.check_input_dataframe(df,spec_file='templates/ermin-specification.csv')
+```
+
+Validate a CSV file and save repaired table to a new file:
+```python
+import ermin.validation as ev
+import pandas as pd
+warnings, errors = check_input_file('test/testdata/testinput1.csv, 'templats/ermin-specification.csv', output_file='t1-fix.csv')
+
+```
+
+### To use from the command line:
 Print instructions with:
 ```bash
 python validate_ermin_table.py -h
