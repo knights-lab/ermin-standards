@@ -1,6 +1,8 @@
 import csv
 from ermin import syntax as es
 from ermin import unfccc_utils
+from pathlib import Path
+import pandas as pd
 
 # load iterable filter (rather than old list-based filter)
 # To avoid loading filtered file into memory
@@ -11,6 +13,135 @@ try:
 except ImportError:
     # Python 3
     pass
+
+# Wrapper function for using pandas DataFrame as input
+def check_input_dataframe(input_df, spec_file=None, spec_rows=None, repair=True, output_file=None):
+    """Check entire input data frame against spec file
+       
+       Either spec_file or spec_dict must be provided.
+       
+       Optionally repairs missing data according to specification.
+
+       Parameters:
+       input_df (DataFrame): Emissions report DataFrame
+       spec_file (str): Path to specification CSV file or None.
+       spec_dict (str): list of dicts of spec values keyed by spec headers or None.
+       repair (bool): If True, repair missing/invalid and return new DataFrame
+       output_file: If not None and repair, write repaired data to output file.
+
+       Returns:
+       warnings (list): a list of warnings encountered
+       errors (list): a list of errors encountered
+       newdf (DataFrame): only returned if repair
+
+    """
+    # Ensure that we have a valid specification
+    if spec_file is not None:
+        spec_rows = load_spec(spec_file)
+    elif spec_rows is None:
+        raise ValueError('check_input_dataframe requires either spec_file or spec_dict.')
+
+    # convert input DataFrame to header, rows
+    input_header = list(input_df.columns)
+    input_rows = input_df.values.tolist()
+
+    warnings1, errors1 = check_input_header(input_header, spec_rows)
+    warnings2, errors2 = check_input_rows(input_header, input_rows, spec_rows)
+    warnings = warnings1 + warnings2
+    errors = errors1 + errors2
+
+    # repair data if requested
+    if repair:
+        new_warnings = repair_data(input_header, input_rows, spec_rows, output_file)
+        warnings += new_warnings
+
+        # Make new DF from header, rows, which have been repaired in place
+        new_df = pd.DataFrame(data = input_rows,
+                              columns = input_header,
+                              index=input_df.index.tolist())
+    elif output_file is not None:
+        # if output file provided but not repair, raise an error
+        raise ValueError('output_file provided but repair was False.')
+
+    if repair:
+        return warnings, errors, new_df
+    else:
+        return warnings, errors
+
+
+
+def check_input_file(input_file, spec_file, output_file=None):
+    """Check entire input file against spec file,
+       Optionally output a new repaired file.
+
+       If repaired output file is requested, input is edited in place and written out
+
+       Parameters:
+       input_file (str): Path to input data table CSV file
+       spec_file (str): Path to specification CSV
+       new_file (str): Path to new output file or None
+
+       Returns:
+       warnings (list): list of warning messages
+       errors (list): list of error messages
+
+    """
+
+    # Load data
+    spec_rows = load_spec(spec_file)
+
+    # Load data
+    input_header, input_rows = load_input(input_file)
+
+    # Run the validation
+    warnings, errors = check_input(input_header, input_rows, spec_rows)
+
+
+    # Write a new output file with missing columns and filled values
+    if output_file is not None:
+        new_warnings = repair_data(input_header, input_rows, spec_rows, output_file)
+        warnings += new_warnings
+
+    return warnings, errors
+
+
+def repair_data(input_header, input_rows, spec_rows, output_file=None):
+    """Replaces values in input header, input rows _in place_
+
+       If repaired output file is requested, input is edited in place and written out
+
+       Parameters:
+       input_header (list): List of column headers from input file
+       input_rows (list): List of lists of fields from each input row
+       spec_rows (list): List of header-keyed dicts of specification rows
+       output_file (str): Path to output file for new data (or None)
+
+       Returns:
+       warnings (list): list of warning messages
+    """
+
+    warnings = []
+
+    # replace missing columns
+    missing_fields = get_missing_header_list(input_header, spec_rows)
+    if(len(missing_fields) > 0):
+        warnings.append('Adding missing fields: '+ ', '.join(missing_fields) + '.')
+        add_columns(input_header, input_rows, missing_fields)
+
+    # replace missing values
+    warnings.append('Replacing missing values with NULL in all columns.')
+    replace_missing_values(input_header, input_rows, column_names=None)
+
+    if output_file is not None:
+        # write new output file
+        path = Path(output_file)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        warnings.append('Writing repaired file to ' + output_file + '.')
+        write_output(output_file, input_header, input_rows)
+
+    return warnings
+
+
 
 # load rules from specification CSV
 def load_spec(csv_filepath):
@@ -105,6 +236,24 @@ def get_missing_header_list(input_header, spec_rows):
                 field_list.append(field_name)
     return field_list
 
+
+def check_input(input_header, input_rows, spec_rows):
+    """Check entire input data set (in list form) against spec
+
+       Parameters:
+       input_header (list): list of strings containing column headers
+       input_rows (list): list of lists containing row values
+       spec_rows (list): list of dicts of spec values keyed by spec headers
+
+       Returns:
+       warnings (list): a list of warnings encountered
+       errors (list): a list of errors encountered
+
+    """
+    warnings1, errors1 = check_input_header(input_header, spec_rows)
+    warnings2, errors2 = check_input_rows(input_header, input_rows, spec_rows)
+    return warnings1 + warnings2, errors1 + errors2
+
 def check_input_rows(input_header, input_rows, spec_rows):
     """Check input file rows for compliance
 
@@ -144,22 +293,6 @@ def check_input_rows(input_header, input_rows, spec_rows):
                     warning = 'Warning in row ' + str(i) + ', column ' + str(j) + ', field "' + field_name + '": ' + warning
                     warning_list.append(warning)
     return warning_list, error_list
-
-
-def check_input(input_header, input_rows, spec_rows, ):
-    """Check one row of an input file against spec
-
-
-       Parameters:
-
-       Returns:
-       new_header: a new repaired header for input file
-       new_rows: new input file rows with repaired values
-
-    """
-    warnings, errors = check_input_header(input_header, spec_rows)
-    warnings, errors = check_input_rows(input_header, input_rows, spec_rows)
-    return warnings + warnings, errors + errors
 
 def replace_missing_values(input_header, input_rows, column_names,
                            replace_with="NULL", in_place=True):
@@ -244,4 +377,5 @@ def add_columns(input_header, input_rows, column_names,
 
     if not in_place:
         return newheader, newrows
+
 

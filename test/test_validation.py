@@ -1,4 +1,5 @@
 import ermin.validation as ev
+import pandas as pd
 
 def test_load_spec():
     """Ensure load_rules returns a list of dicts with
@@ -64,36 +65,23 @@ def test_check_input_header():
     for f in expected:
         assert f in error_list
 
-
-
 def test_check_input_rows():
     """Ensure check_input_rows detects all errors
     """
     # load spec
     spec = ev.load_spec('testdata/ermin-specification.csv')
 
-    print('\n')
     # testinput1 is valid
     header, rows = ev.load_input('testdata/testinput1.csv')
     warnings, errors = ev.check_input_rows(header, rows, spec)
-    print('\n'.join(warnings[:5]))
-    print('\n'.join(errors[:5]))
-
-    print('\n')
 
     # testinput2 is missing column "data_version_changelog" but otherwise valid
     header, rows = ev.load_input('testdata/testinput2.csv')
     warnings, errors = ev.check_input_rows(header, rows, spec)
-    print('\n'.join(warnings))
-    print('\n'.join(errors))
-
-    print('\n')
 
     # testinput3 is missing columns "unfccc_annex_1_category", "data_version_changelog", "reporting_timestamp"
     header, rows = ev.load_input('testdata/testinput3.csv')
     warnings, errors = ev.check_input_rows(header, rows, spec)
-    print('\n'.join(warnings[:5]))
-    print('\n'.join(errors[:5]))
 
 def test_replace_missing_values():
     """Ensure replace_missing_values replaces missing values
@@ -142,3 +130,71 @@ def test_add_columns():
     # assert new column is filled with "TEST"
     for i in range(len(rows)):
         assert rows[i][-1] == "TEST"
+
+def test_check_input_dataframe(tmp_path):
+    """Ensure Pandas wrapper works
+    """
+    # Create test data frame
+    df = pd.DataFrame(columns = ['original_inventory_sector','unfccc_annex_1_category_notes','measurement_method_doi_or_url','producing_entity_name','producing_entity_id','producing_entity_id_type','reporting_entity','emitted_product_formula','emission_quantity','emission_quantity_units','start_time','end_time','data_version'])
+
+    # Add records to dataframe using the .loc function
+    df.loc[0] = ['Agricultural Soils','','https://www.fao.org/faostat/en/','Afghanistan','AFG','iso3_country','Hudson Carbon','CO2','2752210.5','t','2015-01-01','2015-12-31','0.9']
+    df.loc[1] = ['Agricultural Soils','','https://www.fao.org/faostat/en/','Afghanistan','AFG','iso3_country','Hudson Carbon','CO2','3033958.5','t','2016-01-01','2016-12-31','0.9']
+    df.loc[2] = ['Agricultural Soils','','https://www.fao.org/faostat/en/','Afghanistan','AFG','iso3_country','Hudson Carbon','CO2','3168578.5','t','2017-01-01','2017-12-31','0.9']
+    df.loc[3] = ['Agricultural Soils','','https://www.fao.org/faostat/en/','Afghanistan','AFG','iso3_country','Hudson Carbon','CO2','2775212.5','t','2018-01-01','2018-12-31','0.9']
+    df.loc[4] = ['Agricultural Soils','','https://www.fao.org/faostat/en/','Afghanistan','AFG','iso3_country','Hudson Carbon','CO2','3011407','t','2019-01-01','2019-12-31','0.9']
+    df.loc[5] = ['Agricultural Soils','','https://www.fao.org/faostat/en/','Afghanistan','AFG','iso3_country','Hudson Carbon','CO2','3011407','t','2020-01-01','2020-12-31','0.9'] 
+
+    # Check functionality without repairing data
+    warnings, errors = ev.check_input_dataframe(df, spec_file='testdata/ermin-specification.csv', repair=False)
+
+    expected = ['Missing this required column: "unfccc_annex_1_category".', 'Missing this required column: "data_version_changelog".', 'Missing this required column: "reporting_timestamp".']
+    assert len(warnings) == 0
+    for error in errors:
+        assert error in expected 
+    assert len(errors) == len(expected)
+
+    # Check functionality when repairing data
+    warnings, errors, newdf = ev.check_input_dataframe(df, spec_file='testdata/ermin-specification.csv', repair=True)
+    expected_warnings = 'Adding missing fields: unfccc_annex_1_category, data_version_changelog, reporting_timestamp.', 'Replacing missing values with NULL in all columns.'
+    expected_errors = ['Missing this required column: "unfccc_annex_1_category".', 'Missing this required column: "data_version_changelog".', 'Missing this required column: "reporting_timestamp".']
+    for warning in warnings:
+        assert warning in expected_warnings 
+    assert len(warnings) == len(expected_warnings)
+    for error in errors:
+        assert error in expected_errors
+    assert len(errors) == len(expected_errors)
+
+
+    # Check functionality when repairing data, not writing file
+    warnings, errors, newdf = ev.check_input_dataframe(df, spec_file='testdata/ermin-specification.csv', repair=True)
+
+    expected_warnings = ['Adding missing fields: unfccc_annex_1_category, data_version_changelog, reporting_timestamp.', 'Replacing missing values with NULL in all columns.']
+    expected_errors = ['Missing this required column: "unfccc_annex_1_category".', 'Missing this required column: "data_version_changelog".', 'Missing this required column: "reporting_timestamp".']
+    for warning in warnings:
+        assert warning in expected_warnings 
+    assert len(warnings) == len(expected_warnings)
+    for error in errors:
+        assert error in expected_errors
+    assert len(errors) == len(expected_errors)
+
+
+    # Check functionality when repairing data  and writing file
+    output_file = tmp_path / 'tmp.csv'
+    warnings, errors, newdf = ev.check_input_dataframe(df, spec_file='testdata/ermin-specification.csv', repair=True, output_file=str(output_file))
+
+    expected_warnings = ['Writing repaired file to ' + str(output_file) + '.', 'Adding missing fields: unfccc_annex_1_category, data_version_changelog, reporting_timestamp.', 'Replacing missing values with NULL in all columns.']
+    expected_errors = ['Missing this required column: "unfccc_annex_1_category".', 'Missing this required column: "data_version_changelog".', 'Missing this required column: "reporting_timestamp".']
+    for warning in warnings:
+        assert warning in expected_warnings 
+    assert len(warnings) == len(expected_warnings)
+    for error in errors:
+        assert error in expected_errors
+    assert len(errors) == len(expected_errors)
+
+    # load file, check header for new values, check rows for NULL where missing values were
+    expected_header = ['original_inventory_sector','unfccc_annex_1_category_notes','measurement_method_doi_or_url','producing_entity_name','producing_entity_id','producing_entity_id_type','reporting_entity','emitted_product_formula','emission_quantity','emission_quantity_units','start_time','end_time','data_version',
+                        'unfccc_annex_1_category', 'data_version_changelog', 'reporting_timestamp']
+    header, rows = ev.load_input(output_file)
+    for i in range(len(rows)):
+        assert rows[i][1] == "NULL"
