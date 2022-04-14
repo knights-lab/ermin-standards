@@ -196,6 +196,7 @@ def write_output(csv_filepath, headers, rows):
     Parameters:
     csv_filepath (str): full path to CSV file containing the input file
     """
+
     # Get headers
     with open(csv_filepath, newline='', mode='w') as csvfile:
         writer = csv.writer(csvfile)

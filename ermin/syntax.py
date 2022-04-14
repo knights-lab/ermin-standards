@@ -26,6 +26,9 @@ def check_syntax(value,syntax,error_on_missing_value = False):
     error_list = []
     warning_list = []
 
+    if type(value) is not str:
+        raise ValueError('Non-string value found in input field. If using pandas, load files with dtype=str and keep_default_na=False.')
+
     # remove multiple/trailing spaces
     value = re.sub(r'\s+',' ',value).strip()
     syntax = re.sub(r'\s+',' ',syntax).strip()
