@@ -198,3 +198,58 @@ def test_check_input_dataframe(tmp_path):
     header, rows = ev.load_input(output_file)
     for i in range(len(rows)):
         assert rows[i][1] == "NULL"
+
+
+
+def test_check_input_dataframe_with_pandas_dtypes(tmp_path):
+    """Ensure Pandas wrapper works
+    """
+    # Create test data frame
+    df = pd.DataFrame(columns = ['original_inventory_sector','unfccc_annex_1_category_notes','measurement_method_doi_or_url','producing_entity_name','producing_entity_id','producing_entity_id_type','reporting_entity','emitted_product_formula','emission_quantity','emission_quantity_units','start_time','end_time','data_version'])
+
+    # Add records to dataframe using the .loc function
+    df.loc[0] = ['Agricultural Soils','','https://www.fao.org/faostat/en/','Afghanistan','AFG','iso3_country','Hudson Carbon','CO2','2752210.5','t','2015-01-01','2015-12-31','0.9']
+    df.loc[1] = ['Agricultural Soils','','https://www.fao.org/faostat/en/','Afghanistan','AFG','iso3_country','Hudson Carbon','CO2','3033958.5','t','2016-01-01','2016-12-31','0.9']
+    df.loc[2] = ['Agricultural Soils','','https://www.fao.org/faostat/en/','Afghanistan','AFG','iso3_country','Hudson Carbon','CO2','3168578.5','t','2017-01-01','2017-12-31','0.9']
+    df.loc[3] = ['Agricultural Soils','','https://www.fao.org/faostat/en/','Afghanistan','AFG','iso3_country','Hudson Carbon','CO2','2775212.5','t','2018-01-01','2018-12-31','0.9']
+    df.loc[4] = ['Agricultural Soils','','https://www.fao.org/faostat/en/','Afghanistan','AFG','iso3_country','Hudson Carbon','CO2','3011407','t','2019-01-01','2019-12-31','0.9']
+    df.loc[5] = ['Agricultural Soils','','https://www.fao.org/faostat/en/','Afghanistan','AFG','iso3_country','Hudson Carbon','CO2','3011407','t','2020-01-01','2020-12-31','0.9'] 
+
+    # Read a pandas dataframe from a file
+    df = pd.read_csv('testdata/testinput4-extra-columns.csv', comment='#', keep_default_na=False)
+
+    # Convert all to string
+    for column in df.columns:
+        df = df.astype({column: str})
+
+    # Convert a few columns to new types
+    df['start_time'] = pd.to_datetime(df['start_time'],format='%Y-%m-%d')
+    df['end_time'] = pd.to_datetime(df['end_time'],format='%Y-%m-%d')
+    df = df.astype({"emission_quantity": float})
+
+    # Check functionality without repairing data
+    warnings, errors = ev.check_input_dataframe(df, spec_file='testdata/ermin-specification.csv', repair=False)
+    assert(len(warnings) == 0)
+    expected_errors = ['Missing this required column: "unfccc_annex_1_category".', 'Missing this required column: "data_version_changelog".', 'Error in row 0, column 13, field "reporting_timestamp": Required field is empty.', 'Error in row 1, column 13, field "reporting_timestamp": Required field is empty.', 'Error in row 2, column 13, field "reporting_timestamp": Required field is empty.', 'Error in row 3, column 13, field "reporting_timestamp": Required field is empty.', 'Error in row 4, column 13, field "reporting_timestamp": Required field is empty.', 'Error in row 5, column 13, field "reporting_timestamp": Required field is empty.', 'Error in row 6, column 13, field "reporting_timestamp": Required field is empty.', 'Error in row 7, column 13, field "reporting_timestamp": Required field is empty.', 'Error in row 8, column 13, field "reporting_timestamp": Required field is empty.', 'Error in row 9, column 13, field "reporting_timestamp": Required field is empty.', 'Error in row 10, column 13, field "reporting_timestamp": Required field is empty.', 'Error in row 11, column 13, field "reporting_timestamp": Required field is empty.', 'Error in row 12, column 13, field "reporting_timestamp": Required field is empty.', 'Error in row 13, column 13, field "reporting_timestamp": Required field is empty.']    
+    for error in errors:
+        assert error in expected_errors
+    assert len(errors) == len(expected_errors)
+
+    # Check functionality with repairing data, see if dtypes are preserved
+    types_dict = df.dtypes.to_dict()
+
+    warnings, errors, newdf = ev.check_input_dataframe(df, spec_file='testdata/ermin-specification.csv', repair=True)
+    expected_warnings = ['Adding missing fields: unfccc_annex_1_category, data_version_changelog.', 'Replacing missing values with NULL in all columns.']
+    expected_errors = ['Missing this required column: "unfccc_annex_1_category".', 'Missing this required column: "data_version_changelog".', 'Error in row 0, column 13, field "reporting_timestamp": Required field is empty.', 'Error in row 1, column 13, field "reporting_timestamp": Required field is empty.', 'Error in row 2, column 13, field "reporting_timestamp": Required field is empty.', 'Error in row 3, column 13, field "reporting_timestamp": Required field is empty.', 'Error in row 4, column 13, field "reporting_timestamp": Required field is empty.', 'Error in row 5, column 13, field "reporting_timestamp": Required field is empty.', 'Error in row 6, column 13, field "reporting_timestamp": Required field is empty.', 'Error in row 7, column 13, field "reporting_timestamp": Required field is empty.', 'Error in row 8, column 13, field "reporting_timestamp": Required field is empty.', 'Error in row 9, column 13, field "reporting_timestamp": Required field is empty.', 'Error in row 10, column 13, field "reporting_timestamp": Required field is empty.', 'Error in row 11, column 13, field "reporting_timestamp": Required field is empty.', 'Error in row 12, column 13, field "reporting_timestamp": Required field is empty.', 'Error in row 13, column 13, field "reporting_timestamp": Required field is empty.']    
+
+    for warning in warnings:
+        assert warning in expected_warnings 
+    assert len(warnings) == len(expected_warnings)
+    for error in errors:
+        assert error in expected_errors
+    assert len(errors) == len(expected_errors)
+
+    new_types_dict = newdf.dtypes.to_dict()
+    for key in types_dict:
+        assert key in new_types_dict.keys()
+        assert new_types_dict[key] == types_dict[key]

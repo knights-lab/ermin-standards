@@ -41,6 +41,8 @@ def check_input_dataframe(input_df, spec_file=None, spec_rows=None, repair=True,
     elif spec_rows is None:
         raise ValueError('check_input_dataframe requires either spec_file or spec_dict.')
 
+    # Store original input dtypes
+    
     # convert input DataFrame to header, rows
     input_header = list(input_df.columns)
     input_rows = input_df.values.tolist()
