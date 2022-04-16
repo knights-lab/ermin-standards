@@ -15,19 +15,25 @@ except ImportError:
     pass
 
 # Wrapper function for using pandas DataFrame as input
-def check_input_dataframe(input_df, spec_file=None, spec_rows=None, repair=True, output_file=None):
+def check_input_dataframe(input_df,
+                          spec_file=None,
+                          spec_rows=None,
+                          repair=True,
+                          output_file=None,
+                          allow_unknown_stringtypes=False):
     """Check entire input data frame against spec file
        
-       Either spec_file or spec_dict must be provided.
+       Either spec_file or spec_rows must be provided.
        
        Optionally repairs missing data according to specification.
 
        Parameters:
        input_df (DataFrame): Emissions report DataFrame
        spec_file (str): Path to specification CSV file or None.
-       spec_dict (str): list of dicts of spec values keyed by spec headers or None.
+       spec_rows (str): list of dicts of spec values keyed by spec headers or None.
        repair (bool): If True, repair missing/invalid and return new DataFrame
-       output_file: If not None and repair, write repaired data to output file.
+       output_file (str): If not None and repair, write repaired data to output file.
+       allow_unknown_stringyptes (bool): if False, raise error on unknown stringtypes
 
        Returns:
        warnings (list): a list of warnings encountered
@@ -42,13 +48,14 @@ def check_input_dataframe(input_df, spec_file=None, spec_rows=None, repair=True,
         raise ValueError('check_input_dataframe requires either spec_file or spec_dict.')
 
     # Store original input dtypes
-    
+
     # convert input DataFrame to header, rows
     input_header = list(input_df.columns)
     input_rows = input_df.values.tolist()
 
     warnings1, errors1 = check_input_header(input_header, spec_rows)
-    warnings2, errors2 = check_input_rows(input_header, input_rows, spec_rows)
+    warnings2, errors2 = check_input_rows(input_header, input_rows, spec_rows, 
+                                          allow_unknown_stringtypes=allow_unknown_stringtypes)
     warnings = warnings1 + warnings2
     errors = errors1 + errors2
 
@@ -239,14 +246,15 @@ def get_missing_header_list(input_header, spec_rows):
                 field_list.append(field_name)
     return field_list
 
-
-def check_input(input_header, input_rows, spec_rows):
+def check_input(input_header, input_rows, spec_rows, allow_unknown_stringtypes=False):
     """Check entire input data set (in list form) against spec
 
        Parameters:
        input_header (list): list of strings containing column headers
        input_rows (list): list of lists containing row values
        spec_rows (list): list of dicts of spec values keyed by spec headers
+       allow_unknown_stringyptes (bool): if False, raise error on unknown stringtypes
+
 
        Returns:
        warnings (list): a list of warnings encountered
@@ -254,10 +262,10 @@ def check_input(input_header, input_rows, spec_rows):
 
     """
     warnings1, errors1 = check_input_header(input_header, spec_rows)
-    warnings2, errors2 = check_input_rows(input_header, input_rows, spec_rows)
+    warnings2, errors2 = check_input_rows(input_header, input_rows, spec_rows, allow_unknown_stringtypes=allow_unknown_stringtypes)
     return warnings1 + warnings2, errors1 + errors2
 
-def check_input_rows(input_header, input_rows, spec_rows):
+def check_input_rows(input_header, input_rows, spec_rows, allow_unknown_stringtypes=False):
     """Check input file rows for compliance
 
        Specifically, are any values missing in required columns?
@@ -267,6 +275,7 @@ def check_input_rows(input_header, input_rows, spec_rows):
        input_header (list): List of column headers from input file
        input_rows (list): List of lists of fields from each input row
        spec_rows (list): List of header-keyed dicts of specification rows
+       allow_unknown_stringyptes (bool): if False, raise error on unknown stringtypes
 
        Returns:
        warnings (list): a list of warnings encountered
@@ -288,7 +297,9 @@ def check_input_rows(input_header, input_rows, spec_rows):
             if field_name in input_header:
                 j = input_header.index(field_name)
                 value = irow[j]
-                warnings, errors = es.check_syntax(value, syntax, error_on_missing_value = is_required)
+                warnings, errors = es.check_syntax(value, syntax,
+                                                   error_on_missing_value = is_required,
+                                                   allow_unknown_stringtypes=allow_unknown_stringtypes)
                 for error in errors:
                     error = 'Error in row ' + str(i) + ', column ' + str(j) + ', field "' + field_name + '": ' + error
                     error_list.append(error)

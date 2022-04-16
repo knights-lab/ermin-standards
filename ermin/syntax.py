@@ -6,7 +6,9 @@ import inspect
 from ermin import unfccc_utils
 import numpy as np
 
-def check_syntax(value,syntax,error_on_missing_value = False):
+def check_syntax(value, syntax,
+                 error_on_missing_value = False,
+                 allow_unknown_stringtypes=False):
     """Check that value matches syntax
 
        Known syntax possibilities are:
@@ -39,9 +41,6 @@ def check_syntax(value,syntax,error_on_missing_value = False):
         value = re.sub(r'\s+',' ',value).strip()
         value = value.replace(', ',',')
 
-        # # If float or int or bool, just cast to string
-        # raise ValueError('Non-string value found in input field. If using pandas, load files with dtype=str and keep_default_na=False.')
-
     # Could implement this is a very flexible and recursive way,
     # but there are few enough possibilities that it will be 
     # easier to read and write this code if we simply 
@@ -56,7 +55,7 @@ def check_syntax(value,syntax,error_on_missing_value = False):
         if not matches_syntax_list(value, syntax):
             error_list.append('Invalid value: "' + str(value) + '". Accepted syntax: ' + syntax + '.')
     elif syntax.startswith("{"):
-        errors = get_string_type_match_errors(value, syntax)
+        errors = get_string_type_match_errors(value, syntax, allow_unknown_stringtypes=allow_unknown_stringtypes)
         if len(errors) > 0:
             error_list += errors
 
@@ -129,7 +128,7 @@ def matches_syntax_list(value, syntax):
                         is_match = True
     return is_match
 
-def get_string_type_match_errors(value, stringtype):
+def get_string_type_match_errors(value, stringtype, allow_unknown_stringtypes=False):
     """Checks whether value matches stringtype.
 
        Accepted string types are {text}, {float}, {int}, {doi}, {url}, {timestamp}, {bool}
@@ -149,9 +148,10 @@ def get_string_type_match_errors(value, stringtype):
         is_valid_type = True
         if stringtype == '{bool}' and type(value) is not bool:
             is_valid_type = False
-        elif stringtype == '{float}' and not np.issubdtype(type(value),np.floating):
+        elif stringtype == '{float}' and not np.issubdtype(type(value),np.floating) and not np.issubdtype(type(value),np.integer):
+            # Allow int type for float
             is_valid_type = False
-        elif stringtype == '{int}' and not np.issubdtype(type(value),np.floating):
+        elif stringtype == '{int}' and not np.issubdtype(type(value),np.integer):
             is_valid_type = False
         elif stringtype == '{timestamp}' \
             and not str(type(value)).startswith('datetime') \
@@ -213,7 +213,8 @@ def get_string_type_match_errors(value, stringtype):
                     valid = False
             if not valid:
                 error_list.append('One or more values in list do not match expected format ("' + stringtype_substring + '"): ' + value) 
-        elif stringtype != '{text}':
+        elif stringtype != '{text}' and not allow_unknown_stringtypes:
+            # Only raise error if we're not allowed to ignore unknown stringtypes
             raise ValueError('Error: unknown stringtype "' + stringtype + '"')
 
     return error_list
