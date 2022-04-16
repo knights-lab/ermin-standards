@@ -33,9 +33,9 @@ import pandas as pd
 
 # load CSV into a Pandas DataFrame
 # Notes: use comment='#' to skip comment lines
-#        use dtype = str to prevent conversion of fields
 #        use keep_default_na=False to ensure that empty fields remain strings
-df = pd.read_csv('test/testdata/testinput3.csv', comment='#', dtype = str, keep_default_na=False)
+#        optionally, use dtype = str to keep all fields as strings
+df = pd.read_csv('test/testdata/testinput3.csv', comment='#', keep_default_na=False)
 
 # Example 1: Validate DataFrame using provided spec file, returning a new repaired DataFrame
 warnings, errors, newdf = ev.check_input_dataframe(df,spec_file='templates/ermin-specification.csv')
